@@ -1,7 +1,15 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
+import RootLayout from './app/layout';
+import Home from './app/page';
+
+/**
+ * Next.js Refactor:
+ * In a traditional Next.js environment, the build system handles the assembly
+ * of the RootLayout and Pages. In this browser environment, we simulate the
+ * App Router by nesting the Home page inside the RootLayout entry point.
+ */
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -11,13 +19,15 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <RootLayout>
+      <Home />
+    </RootLayout>
   </React.StrictMode>
 );
 
-// PWA: Basic Service Worker registration (Mock/Placeholder)
+// PWA: Service Worker registration
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    console.log('SyncDrop PWA Ready');
+    // Shared clipboard logic for mobile target would go here
   });
 }

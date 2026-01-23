@@ -41,10 +41,14 @@ class SyncService {
     this.saveDrops(updated);
   }
 
+  // Explicitly return a void function for subscription cleanup to avoid React type errors
+  // Set.delete returns boolean, so we wrap it in a block to return void.
   subscribe(callback: (drops: Drop[]) => void) {
     this.listeners.add(callback);
     callback(this.getAllDrops());
-    return () => this.listeners.delete(callback);
+    return () => {
+      this.listeners.delete(callback);
+    };
   }
 
   private notify(drops: Drop[]) {

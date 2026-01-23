@@ -2,17 +2,15 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { DropType, DropMetadata } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-
 export async function analyzeDrop(content: string): Promise<{
   type: DropType;
   tags: string[];
   metadata?: DropMetadata;
 }> {
-  if (!process.env.API_KEY) {
-    return { type: 'text', tags: [] };
-  }
-
+  // Use the API_KEY directly from process.env as per guidelines.
+  // We initialize a new GoogleGenAI instance inside the function to ensure the most up-to-date key is used.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
   const isUrl = content.match(/^https?:\/\/[^\s$.?#].[^\s]*$/gm);
 
   try {
@@ -45,7 +43,9 @@ export async function analyzeDrop(content: string): Promise<{
       }
     });
 
-    const data = JSON.parse(response.text);
+    // Extract and trim response text before parsing JSON
+    const jsonStr = response.text.trim();
+    const data = JSON.parse(jsonStr);
     return data;
   } catch (error) {
     console.error("Gemini analysis failed", error);

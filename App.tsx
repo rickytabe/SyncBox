@@ -13,11 +13,11 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
+  // Fix: Return the cleanup function directly from subscribe to ensure the correct return type for useEffect
   useEffect(() => {
-    const unsubscribe = syncService.subscribe((updatedDrops) => {
+    return syncService.subscribe((updatedDrops) => {
       setDrops(updatedDrops);
     });
-    return () => unsubscribe();
   }, []);
 
   const filteredDrops = useMemo(() => {
