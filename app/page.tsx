@@ -16,7 +16,6 @@ export default function Home({ currentCollection = 'inbox' }: PageProps) {
   const [drops, setDrops] = useState<Drop[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Fix: Return the cleanup function directly from subscribe to ensure the correct return type for useEffect
   useEffect(() => {
     return syncService.subscribe((updatedDrops) => {
       setDrops(updatedDrops);
@@ -36,6 +35,7 @@ export default function Home({ currentCollection = 'inbox' }: PageProps) {
   }, [drops, currentCollection, searchQuery]);
 
   const currentCollectionData = COLLECTIONS.find(c => c.id === currentCollection);
+  const CollectionIcon = currentCollectionData?.icon;
 
   return (
     <main className="flex-1 w-full max-w-5xl mx-auto px-4 pt-24 pb-32 md:pt-16 md:pb-16 animate-in fade-in duration-700">
@@ -77,8 +77,8 @@ export default function Home({ currentCollection = 'inbox' }: PageProps) {
             </div>
           ) : (
             <div className="py-24 text-center space-y-6">
-              <div className="w-20 h-20 bg-slate-100 dark:bg-zinc-900 rounded-3xl flex items-center justify-center mx-auto text-4xl shadow-inner">
-                {currentCollectionData?.icon || '🏝️'}
+              <div className="w-20 h-20 bg-slate-100 dark:bg-zinc-900 rounded-3xl flex items-center justify-center mx-auto text-slate-300 dark:text-zinc-700 shadow-inner">
+                {CollectionIcon ? <CollectionIcon size={40} /> : <ICONS.Sparkles size={40} />}
               </div>
               <div className="space-y-2">
                 <h3 className="text-xl font-bold text-slate-800 dark:text-zinc-200">Everything is in sync</h3>
@@ -93,7 +93,7 @@ export default function Home({ currentCollection = 'inbox' }: PageProps) {
 
       {/* Floating Action Button (Mobile Only) */}
       <button 
-        className="md:hidden fixed bottom-8 right-8 w-16 h-16 rounded-full bg-blue-600 text-white shadow-2xl shadow-blue-500/40 flex items-center justify-center active:scale-95 transition-transform z-30"
+        className="md:hidden fixed bottom-24 right-8 w-16 h-16 rounded-full bg-blue-600 text-white shadow-2xl shadow-blue-500/40 flex items-center justify-center active:scale-95 transition-transform z-30"
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       >
         <ICONS.Plus className="w-8 h-8" />

@@ -5,10 +5,9 @@ import { DropType, DropMetadata } from "../types";
 export async function analyzeDrop(content: string): Promise<{
   type: DropType;
   tags: string[];
+  suggestedCollectionId: string;
   metadata?: DropMetadata;
 }> {
-  // Use the API_KEY directly from process.env as per guidelines.
-  // We initialize a new GoogleGenAI instance inside the function to ensure the most up-to-date key is used.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const isUrl = content.match(/^https?:\/\/[^\s$.?#].[^\s]*$/gm);
@@ -16,12 +15,9 @@ export async function analyzeDrop(content: string): Promise<{
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Analyze this content for a digital clipboard. 
-      Content: "${content}"
-      
-      Determine if it's a 'url', 'snippet' (code), or 'text'.
-      Suggest 2-3 relevant tags.
-      If it's a URL, suggest a possible title and site name.`,
+      contents: `Analyze this clipboard drop and route it to the best collection.
+      Collections: inbox, work, personal, links, code.
+      Content: "${content}"`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -29,6 +25,7 @@ export async function analyzeDrop(content: string): Promise<{
           properties: {
             type: { type: Type.STRING, enum: ['url', 'snippet', 'text'] },
             tags: { type: Type.ARRAY, items: { type: Type.STRING } },
+            suggestedCollectionId: { type: Type.STRING },
             metadata: {
               type: Type.OBJECT,
               properties: {
@@ -38,20 +35,20 @@ export async function analyzeDrop(content: string): Promise<{
               }
             }
           },
-          required: ['type', 'tags']
-        }
+          required: ['type', 'tags', 'suggestedCollectionId']
+        },
+        tools: isUrl ? [{ googleSearch: {} }] : undefined
       }
     });
 
-    // Extract and trim response text before parsing JSON
-    const jsonStr = response.text.trim();
-    const data = JSON.parse(jsonStr);
+    const data = JSON.parse(response.text.trim());
     return data;
   } catch (error) {
-    console.error("Gemini analysis failed", error);
+    console.error("Gemini Analysis Error:", error);
     return { 
       type: isUrl ? 'url' : 'text', 
       tags: [],
+      suggestedCollectionId: isUrl ? 'links' : 'inbox',
       metadata: isUrl ? { title: content, siteName: 'Web Link' } : undefined
     };
   }
