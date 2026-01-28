@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { ICONS } from '../constants';
 import { authService } from '../services/authService';
-import { X, User, Cloud, LogOut, ChevronRight, Brain, Moon, Sun, Monitor, ChevronLeft } from 'lucide-react';
+import { X, User, Cloud, LogOut, ChevronRight, Brain, Moon, Sun, Monitor, ChevronLeft, ShieldAlert } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -17,8 +17,9 @@ type SettingsSection = 'appearance' | 'account' | 'ai' | 'sync';
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onTriggerAuth, user }) => {
   const [activeSection, setActiveSection] = useState<SettingsSection>('appearance');
+  // On desktop, we want to see the content immediately. On mobile, we start with the menu.
   const [mobileView, setMobileView] = useState<'menu' | 'detail'>('menu');
-  const [theme, setTheme] = useState(localStorage.getItem('syncdrop_theme') || 'system');
+  const [theme, setTheme] = useState(() => localStorage.getItem('syncdrop_theme') || 'system');
 
   useEffect(() => {
     if (isOpen) {
@@ -54,6 +55,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
   ];
 
   const currentSectionData = sections.find(s => s.id === activeSection);
+  const isPending = user?.is_pending || (user && !user.email_confirmed_at && user.app_metadata?.provider === 'email');
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center md:p-4 animate-in fade-in duration-300">
@@ -61,7 +63,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
       
       <div className="relative w-full h-full md:h-auto md:max-w-4xl bg-white dark:bg-zinc-900 md:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col md:flex-row md:min-h-[600px] border-slate-100 dark:border-zinc-800">
         
-        {/* Mobile Root Menu / Desktop Sidebar */}
+        {/* Sidebar Navigation */}
         <div className={`w-full md:w-72 bg-slate-50 dark:bg-zinc-950/50 p-6 md:p-10 md:border-r border-slate-100 dark:border-zinc-800 flex flex-col transition-all duration-300 ${mobileView === 'detail' ? 'hidden md:flex' : 'flex'}`}>
           <div className="flex items-center justify-between mb-8 md:mb-12">
             <div className="flex items-center gap-3">
@@ -81,8 +83,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                 key={s.id} 
                 onClick={() => handleSectionSelect(s.id as SettingsSection)}
                 className={`w-full flex items-center justify-between px-6 py-5 md:py-4 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all ${
-                  activeSection === s.id && mobileView === 'detail' 
-                    ? 'md:bg-blue-600 md:text-white md:shadow-xl md:shadow-blue-500/20' 
+                  activeSection === s.id 
+                    ? 'md:bg-blue-600 md:text-white md:shadow-xl md:shadow-blue-500/20 bg-blue-600 text-white md:bg-blue-600' 
                     : 'bg-white md:bg-transparent dark:bg-zinc-900 md:dark:bg-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-zinc-800 border border-slate-100 dark:border-zinc-800 md:border-transparent'
                 }`}
               >
@@ -90,7 +92,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                    <s.icon size={20} />
                    <span>{s.label}</span>
                 </div>
-                <ChevronRight size={16} className={activeSection === s.id && mobileView === 'detail' ? 'opacity-100' : 'opacity-40'} />
+                <ChevronRight size={16} className={activeSection === s.id ? 'opacity-100' : 'opacity-40'} />
               </button>
             ))}
           </nav>
@@ -159,15 +161,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                   <h3 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white hidden md:block">Profile</h3>
                   {user ? (
                      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 p-10 rounded-[2.5rem] bg-slate-50 dark:bg-zinc-800 border border-slate-100 dark:border-zinc-700">
-                        <img 
-                          src={user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${user.email}`} 
-                          className="w-24 h-24 rounded-full ring-8 ring-white dark:ring-zinc-700 shadow-2xl" 
-                          alt="Avatar"
-                        />
+                        <div className="relative">
+                          <img 
+                            src={user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${user.user_metadata?.full_name || user.email}`} 
+                            className="w-24 h-24 rounded-full ring-8 ring-white dark:ring-zinc-700 shadow-2xl" 
+                            alt="Avatar"
+                          />
+                          {isPending && (
+                            <div className="absolute -top-2 -right-2 bg-amber-500 text-white p-2 rounded-full shadow-lg">
+                              <ShieldAlert size={16} />
+                            </div>
+                          )}
+                        </div>
                         <div className="text-center sm:text-left space-y-2">
-                           <h4 className="text-2xl font-black text-slate-900 dark:text-white">{user.user_metadata?.full_name || 'Cloud User'}</h4>
+                           <h4 className="text-2xl font-black text-slate-900 dark:text-white">{user.user_metadata?.full_name || 'Sync User'}</h4>
                            <p className="text-sm text-slate-500 font-medium">{user.email}</p>
-                           <span className="mt-4 inline-block px-4 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-xl">Verified Cloud Account</span>
+                           {isPending ? (
+                             <div className="mt-4 flex flex-col items-center sm:items-start gap-2">
+                               <span className="inline-block px-4 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 text-[10px] font-black uppercase tracking-widest rounded-xl">Verification Pending</span>
+                               <p className="text-[10px] text-slate-400 font-bold max-w-xs">Please check your email to enable cloud sync features.</p>
+                             </div>
+                           ) : (
+                             <span className="mt-4 inline-block px-4 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-xl">Verified Cloud Account</span>
+                           )}
                         </div>
                      </div>
                   ) : (
@@ -184,12 +200,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                         Connect Account
                        </button>
                     </div>
-                  )}
-                  
-                  {user && (
-                    <button onClick={() => authService.signOut()} className="md:hidden w-full flex items-center justify-center gap-3 px-6 py-5 text-rose-500 font-black text-xs uppercase tracking-widest bg-rose-50 dark:bg-rose-950/20 rounded-2xl transition-all">
-                      <LogOut size={20} /> <span>Sign Out of SyncDrop</span>
-                    </button>
                   )}
                </div>
             )}

@@ -19,7 +19,8 @@ export default function RootLayout({
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  // Initialize user state with pending user immediately to avoid auth screen flash
+  const [user, setUser] = useState<any>(() => authService.getPendingUser());
   const [showVerifyBanner, setShowVerifyBanner] = useState(false);
 
   useEffect(() => {
@@ -46,8 +47,6 @@ export default function RootLayout({
       if (localStorage.getItem('syncdrop_theme') === 'system') applyTheme();
     };
     mediaQuery.addEventListener('change', handleChange);
-    
-    // Listen for custom theme change events from settings
     window.addEventListener('syncdrop_theme_change', applyTheme);
     
     return () => {
@@ -61,13 +60,16 @@ export default function RootLayout({
       setUser(newUser);
       
       // Check for email verification status
-      if (newUser && !newUser.email_confirmed_at && newUser.app_metadata?.provider === 'email') {
+      const isUnverified = newUser && (!newUser.email_confirmed_at && (newUser.app_metadata?.provider === 'email' || newUser.is_pending));
+      
+      if (isUnverified) {
         setShowVerifyBanner(true);
       } else {
         setShowVerifyBanner(false);
       }
 
       const isGuest = localStorage.getItem('syncdrop_guest');
+      // Only open auth if no user (real or pending) and not a guest
       if (!newUser && !isGuest) {
         setIsAuthOpen(true);
       }
@@ -104,7 +106,7 @@ export default function RootLayout({
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold leading-tight">Verify your email</p>
-              <p className="text-[11px] opacity-80 font-medium">Please check <span className="underline">{user?.email}</span> to enable all features.</p>
+              <p className="text-[11px] opacity-80 font-medium">Please check <span className="underline">{user?.email}</span> to enable cloud sync.</p>
             </div>
             <button 
               onClick={() => setShowVerifyBanner(false)}
