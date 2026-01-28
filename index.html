@@ -6,6 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SyncDrop | AI Powered Workspace</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              border: "hsl(var(--border))",
+              background: "hsl(var(--background))",
+              foreground: "hsl(var(--foreground))",
+            }
+          }
+        }
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -15,22 +29,19 @@
             -webkit-tap-highlight-color: transparent;
             scroll-behavior: smooth;
         }
-        .glass {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-        }
-        .dark .glass {
-            background: rgba(9, 9, 11, 0.8);
-        }
         /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb {
-            background: #e2e8f0;
+            background: rgba(100, 116, 139, 0.2);
             border-radius: 10px;
         }
-        .dark ::-webkit-scrollbar-thumb { background: #27272a; }
+        .dark ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); }
+        
+        /* Smooth theme transition */
+        html, body {
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
     </style>
 <script type="importmap">
 {
@@ -41,12 +52,13 @@
     "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
     "lucide-react": "https://esm.sh/lucide-react@0.460.0",
     "clsx": "https://esm.sh/clsx@2.1.1",
-    "tailwind-merge": "https://esm.sh/tailwind-merge@2.5.2"
+    "tailwind-merge": "https://esm.sh/tailwind-merge@2.5.2",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.45.4"
   }
 }
 </script>
 </head>
-<body class="bg-[#F8F9FB] text-slate-900 dark:bg-zinc-950 dark:text-zinc-100 transition-colors duration-300 overflow-x-hidden">
+<body class="bg-[#F8F9FB] text-slate-900 dark:bg-black dark:text-zinc-100 overflow-x-hidden">
     <div id="root"></div>
 </body>
 </html>

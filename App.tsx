@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { QuickDrop } from './components/QuickDrop';
 import { DropItem } from './components/DropItem';
 import { Sidebar } from './components/Sidebar';
 import { syncService } from './services/syncService';
-import { Drop, ViewMode } from './types';
+// Removed non-existent ViewMode from import
+import { Drop } from './types';
 import { ICONS, COLLECTIONS } from './constants';
 
 const App: React.FC = () => {
@@ -13,12 +13,12 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
-  // Fix: Return the cleanup function directly from subscribe to ensure the correct return type for useEffect
+  // Fix: Provide currentCollection as the first argument to subscribe and add it to dependencies to resolve the parameter count error.
   useEffect(() => {
-    return syncService.subscribe((updatedDrops) => {
+    return syncService.subscribe(currentCollection, (updatedDrops) => {
       setDrops(updatedDrops);
     });
-  }, []);
+  }, [currentCollection]);
 
   const filteredDrops = useMemo(() => {
     return drops.filter(drop => {

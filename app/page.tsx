@@ -10,29 +10,30 @@ import { ICONS, COLLECTIONS } from '../constants';
 
 interface PageProps {
   currentCollection?: string;
+  onTriggerAuth?: () => void;
 }
 
-export default function Home({ currentCollection = 'inbox' }: PageProps) {
+export default function Home({ currentCollection = 'inbox', onTriggerAuth }: PageProps) {
   const [drops, setDrops] = useState<Drop[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    return syncService.subscribe((updatedDrops) => {
+    // Explicitly subscribe to the current collection
+    const unsubscribe = syncService.subscribe(currentCollection, (updatedDrops) => {
       setDrops(updatedDrops);
     });
-  }, []);
+    return () => unsubscribe();
+  }, [currentCollection]);
 
   const filteredDrops = useMemo(() => {
     return drops.filter(drop => {
-      const matchesSearch = drop.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          drop.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                          drop.metadata?.title?.toLowerCase().includes(searchQuery.toLowerCase());
+      const contentMatch = drop.content.toLowerCase().includes(searchQuery.toLowerCase());
+      const tagMatch = drop.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+      const titleMatch = drop.metadata?.title?.toLowerCase().includes(searchQuery.toLowerCase());
       
-      const matchesCollection = currentCollection === 'all' || drop.collectionId === currentCollection;
-      
-      return matchesSearch && matchesCollection;
+      return contentMatch || tagMatch || titleMatch;
     });
-  }, [drops, currentCollection, searchQuery]);
+  }, [drops, searchQuery]);
 
   const currentCollectionData = COLLECTIONS.find(c => c.id === currentCollection);
   const CollectionIcon = currentCollectionData?.icon;
@@ -49,7 +50,7 @@ export default function Home({ currentCollection = 'inbox' }: PageProps) {
                 {currentCollectionData?.name || 'Inbox'}
               </h2>
               <p className="text-slate-500 dark:text-zinc-400 font-medium">
-                {filteredDrops.length} items synced across your devices
+                {filteredDrops.length} items synced
               </p>
             </div>
             <div className="relative group flex-1 max-w-sm">
@@ -64,7 +65,10 @@ export default function Home({ currentCollection = 'inbox' }: PageProps) {
             </div>
           </div>
 
-          <QuickDrop />
+          {/* Conditionally hide QuickDrop in Trash */}
+          {currentCollection !== 'trash' && (
+            <QuickDrop onTriggerAuth={onTriggerAuth} />
+          )}
         </div>
 
         {/* List View */}

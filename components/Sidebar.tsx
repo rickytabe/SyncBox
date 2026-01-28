@@ -11,61 +11,89 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentCollection, onSelectCollection, onOpenSettings }) => {
+  const categories = [
+    { name: 'Collections', items: COLLECTIONS.filter(c => c.category === 'text' && !c.is_system) },
+    { name: 'Media', items: COLLECTIONS.filter(c => c.category === 'media') },
+    { name: 'Docs', items: COLLECTIONS.filter(c => c.category === 'docs') },
+  ];
+
+  const systemItems = COLLECTIONS.filter(c => c.is_system);
+
   return (
-    <aside className="hidden md:flex flex-col w-[280px] h-screen border-r border-slate-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-3xl p-8 sticky top-0">
-      <div className="flex items-center gap-4 mb-14 px-2">
-        <div className="w-10 h-10 rounded-[12px] bg-slate-900 dark:bg-blue-600 flex items-center justify-center text-white shadow-lg">
-          <ICONS.Command className="w-5 h-5" />
+    <aside className="hidden md:flex flex-col w-[300px] h-screen border-r border-slate-200 dark:border-zinc-900 bg-white/50 dark:bg-black/50 backdrop-blur-3xl p-10 sticky top-0 overflow-hidden">
+      <div className="flex items-center gap-4 mb-16 px-2">
+        <div className="w-11 h-11 rounded-[1.25rem] bg-slate-900 dark:bg-blue-600 flex items-center justify-center text-white shadow-xl shadow-blue-500/20">
+          <ICONS.Command size={22} />
         </div>
         <div>
-          <h1 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-zinc-100">SyncDrop</h1>
+          <h1 className="text-xl font-black tracking-tighter text-slate-900 dark:text-zinc-100">SyncDrop</h1>
           <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Connected</span>
+            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Network Active</span>
           </div>
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1.5">
-        <p className="px-3 mb-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300 dark:text-zinc-700">Collections</p>
-        {COLLECTIONS.map((c) => {
-          const Icon = c.icon;
-          return (
-            <button
-              key={c.id}
-              onClick={() => onSelectCollection(c.id)}
-              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl transition-all duration-200 group ${
-                currentCollection === c.id
-                  ? 'bg-white dark:bg-blue-600 shadow-sm border border-slate-100 dark:border-blue-500 text-slate-900 dark:text-white'
-                  : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-100/50 dark:hover:bg-zinc-800/50'
-              }`}
-            >
-              <Icon className={`w-5 h-5 transition-colors ${currentCollection === c.id ? '' : 'text-slate-400 group-hover:text-slate-600'}`} size={20} />
-              <span className="font-bold text-[13px]">{c.name}</span>
-              {currentCollection === c.id && (
-                <div className="ml-auto w-1 h-4 rounded-full bg-slate-900 dark:bg-white/40" />
-              )}
-            </button>
-          );
-        })}
+      <nav className="flex-1 space-y-10 overflow-y-auto no-scrollbar">
+        {categories.map(cat => (
+          <div key={cat.name}>
+            <p className="px-4 mb-5 text-[10px] font-black uppercase tracking-[0.25em] text-slate-300 dark:text-zinc-700">{cat.name}</p>
+            <div className="space-y-1">
+              {cat.items.map((c) => {
+                const Icon = c.icon;
+                const isActive = currentCollection === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => onSelectCollection(c.id)}
+                    className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all duration-300 group ${
+                      isActive
+                        ? 'bg-white dark:bg-zinc-900 shadow-2xl shadow-slate-200 dark:shadow-none border border-slate-100 dark:border-zinc-800 text-slate-900 dark:text-white'
+                        : 'text-slate-400 dark:text-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-900/50 hover:text-slate-900 dark:hover:text-zinc-100'
+                    }`}
+                  >
+                    <Icon size={18} className={`transition-colors ${isActive ? 'text-blue-600' : 'text-slate-300 dark:text-zinc-700 group-hover:text-slate-600'}`} />
+                    <span className="font-bold text-[13px] tracking-tight">{c.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
+        {/* System / Trash Section */}
+        <div>
+           <p className="px-4 mb-5 text-[10px] font-black uppercase tracking-[0.25em] text-slate-300 dark:text-zinc-700">System</p>
+           <div className="space-y-1">
+             {systemItems.map(item => {
+               const Icon = item.icon;
+               const isActive = currentCollection === item.id;
+               return (
+                <button
+                  key={item.id}
+                  onClick={() => onSelectCollection(item.id)}
+                  className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all duration-300 group ${
+                    isActive
+                      ? 'bg-rose-50 dark:bg-rose-900/10 text-rose-600'
+                      : 'text-slate-400 dark:text-zinc-600 hover:bg-rose-50/50 dark:hover:bg-rose-900/5 hover:text-rose-600'
+                  }`}
+                >
+                  <Icon size={18} />
+                  <span className="font-bold text-[13px] tracking-tight">{item.name}</span>
+                </button>
+               )
+             })}
+           </div>
+        </div>
       </nav>
 
-      <div className="mt-auto space-y-4">
-        <div className="p-5 rounded-3xl bg-slate-900 dark:bg-zinc-800 text-white">
-           <p className="text-[10px] font-black uppercase tracking-widest mb-1 opacity-60">Usage</p>
-           <h4 className="text-sm font-bold mb-3">Sync Professional</h4>
-           <div className="w-full h-1 bg-white/10 rounded-full mb-2 overflow-hidden">
-              <div className="w-1/3 h-full bg-blue-400" />
-           </div>
-           <p className="text-[10px] opacity-60">12.4GB / 50GB Shared Storage</p>
-        </div>
-        
+      <div className="mt-10 pt-10 border-t border-slate-100 dark:border-zinc-900">
         <button 
           onClick={onOpenSettings}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-500 dark:text-zinc-400 hover:bg-slate-100/50 dark:hover:bg-zinc-800/50 transition-all font-bold text-[13px]"
+          className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-slate-400 dark:text-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-all font-bold text-[13px]"
         >
-          <ICONS.Settings className="w-5 h-5" />
-          <span>System Prefs</span>
+          <ICONS.Settings size={18} />
+          <span>Settings</span>
         </button>
       </div>
     </aside>

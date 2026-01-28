@@ -3,41 +3,26 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 15, 23, 42;
-  --background-start-rgb: 248, 250, 252;
-  --background-end-rgb: 255, 255, 255;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 241, 245, 249;
-    --background-start-rgb: 9, 9, 11;
-    --background-end-rgb: 0, 0, 0;
+@layer base {
+  body {
+    @apply antialiased;
   }
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
-  font-feature-settings: "ss01", "ss02", "cv01", "cv02";
-}
-
 .glass {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-.dark .glass {
-  background: rgba(9, 9, 11, 0.7);
+  @apply bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl;
 }
 
 .drop-shadow-apple {
   box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* Ensure AI Processing overlay is always visible and beautiful */
+.processing-blur {
+  @apply absolute inset-0 bg-white/40 dark:bg-black/40 backdrop-blur-md z-10 flex flex-col items-center justify-center gap-4 animate-in fade-in duration-300;
+}
+
+/* Fix for standard scrollbars across browsers in dark mode */
+.dark {
+  color-scheme: dark;
 }

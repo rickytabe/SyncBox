@@ -1,216 +1,167 @@
 
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { ICONS } from '../constants';
 import { analyzeDrop } from '../services/geminiService';
 import { syncService } from '../services/syncService';
-import { Drop } from '../types';
-import { GoogleGenAI, Modality, LiveServerMessage } from '@google/genai';
+import { authService } from '../services/authService';
+import { Drop, DropType } from '../types';
+import { Sparkles, Paperclip, Loader2, Command as CmdIcon } from 'lucide-react';
 
-// Helper functions for audio encoding/decoding as per Gemini Live requirements
-function encode(bytes: Uint8Array) {
-  let binary = '';
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
+interface QuickDropProps {
+  onTriggerAuth?: () => void;
 }
 
-function createBlob(data: Float32Array) {
-  const l = data.length;
-  const int16 = new Int16Array(l);
-  for (let i = 0; i < l; i++) {
-    int16[i] = data[i] * 32768;
-  }
-  return {
-    data: encode(new Uint8Array(int16.buffer)),
-    mimeType: 'audio/pcm;rate=16000',
-  };
-}
-
-export const QuickDrop: React.FC = () => {
+export const QuickDrop: React.FC<QuickDropProps> = ({ onTriggerAuth }) => {
   const [content, setContent] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const sessionRef = useRef<any>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const checkGuestAction = async () => {
+    const user = await authService.getCurrentUser();
+    if (!user && onTriggerAuth) {
+      onTriggerAuth();
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    await checkGuestAction();
+    setIsProcessing(true);
+    
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64Content = event.target?.result as string;
+      let type: DropType = 'text';
+      if (file.type.startsWith('image/')) type = 'image';
+      else if (file.type.startsWith('video/')) type = 'video';
+      else if (file.type === 'application/pdf') type = 'document';
+      
+      const analysis = await analyzeDrop(file.name, type);
+      const newDrop: Drop = {
+        id: crypto.randomUUID(),
+        content: base64Content,
+        type,
+        collectionId: analysis.suggestedCollectionId,
+        tags: [file.type.split('/')[1] || 'file'],
+        createdAt: Date.now(),
+        metadata: { title: file.name, fileName: file.name, fileSize: file.size, fileType: file.type }
+      };
+      await syncService.addDrop(newDrop);
+      setIsProcessing(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const ensureProtocol = (input: string) => {
+    // Basic regex for domain-like strings without protocol
+    const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}(?:\/.*)?$/;
+    if (domainRegex.test(input.trim())) {
+      return `https://${input.trim()}`;
+    }
+    return input.trim();
+  };
 
   const handleSubmit = async () => {
-    if (!content.trim()) return;
-
-    const currentContent = content.trim();
+    if (!content.trim() || isProcessing) return;
+    
+    await checkGuestAction();
+    
+    let currentContent = content.trim();
+    // Validate and fix URLs without protocols
+    currentContent = ensureProtocol(currentContent);
+    
     setContent('');
     setIsProcessing(true);
-
-    const analysis = await analyzeDrop(currentContent);
     
-    const newDrop: Drop = {
-      id: crypto.randomUUID(),
-      content: currentContent,
-      type: analysis.type,
-      collectionId: analysis.suggestedCollectionId || 'inbox',
-      tags: analysis.tags,
-      createdAt: Date.now(),
-      metadata: analysis.metadata
-    };
-
-    syncService.addDrop(newDrop);
-    setIsProcessing(false);
+    try {
+      const analysis = await analyzeDrop(currentContent);
+      const newDrop: Drop = {
+        id: crypto.randomUUID(),
+        content: currentContent,
+        type: analysis.type,
+        collectionId: analysis.suggestedCollectionId || 'inbox',
+        tags: analysis.tags,
+        createdAt: Date.now(),
+        metadata: analysis.metadata
+      };
+      await syncService.addDrop(newDrop);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
       handleSubmit();
     }
   };
 
-  const startVoiceSync = async () => {
-    try {
-      setIsRecording(true);
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-      audioContextRef.current = audioCtx;
-      
-      const sessionPromise = ai.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-12-2025',
-        callbacks: {
-          onopen: () => {
-            const source = audioCtx.createMediaStreamSource(stream);
-            const scriptProcessor = audioCtx.createScriptProcessor(4096, 1, 1);
-            
-            scriptProcessor.onaudioprocess = (e) => {
-              const inputData = e.inputBuffer.getChannelData(0);
-              const pcmBlob = createBlob(inputData);
-              sessionPromise.then(session => {
-                session.sendRealtimeInput({ media: pcmBlob });
-              });
-            };
-            
-            source.connect(scriptProcessor);
-            scriptProcessor.connect(audioCtx.destination);
-            (window as any).syncDropAudioNodes = { source, scriptProcessor };
-          },
-          onmessage: async (message: LiveServerMessage) => {
-            // Handle transcription
-            if (message.serverContent?.inputTranscription) {
-              const text = message.serverContent.inputTranscription.text;
-              if (text) {
-                setContent(prev => prev + (prev.endsWith(' ') || prev === '' ? '' : ' ') + text);
-              }
-            }
-          },
-          onerror: (e) => {
-            console.error('Gemini Live Error:', e);
-            stopVoiceSync();
-          },
-          onclose: () => {
-            console.log('Gemini Live session closed');
-            setIsRecording(false);
-          }
-        },
-        config: {
-          responseModalities: [Modality.AUDIO],
-          inputAudioTranscription: {},
-          systemInstruction: 'You are a real-time transcription engine for a digital clipboard. Transcribe clearly and accurately.'
-        }
-      });
-      
-      sessionRef.current = await sessionPromise;
-
-    } catch (err) {
-      console.error('Failed to start voice sync:', err);
-      setIsRecording(false);
-    }
-  };
-
-  const stopVoiceSync = () => {
-    if (sessionRef.current) {
-      // In a real app we might close the session properly
-      // sessionRef.current.close(); 
-      // But for this simple implementation we just clear the local state and context
-      sessionRef.current = null;
-    }
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-    const nodes = (window as any).syncDropAudioNodes;
-    if (nodes) {
-      nodes.source.disconnect();
-      nodes.scriptProcessor.disconnect();
-    }
-    setIsRecording(false);
-  };
-
-  const toggleRecording = () => {
-    if (isRecording) {
-      stopVoiceSync();
-    } else {
-      startVoiceSync();
-    }
-  };
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      stopVoiceSync();
-    };
-  }, []);
-
   return (
-    <div className="relative w-full drop-shadow-apple">
-      <div className="relative overflow-hidden rounded-[1.75rem] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 focus-within:ring-4 focus-within:ring-blue-500/5 transition-all duration-500">
+    <div className="relative w-full">
+      <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
+      
+      <div className="relative group overflow-hidden rounded-[2.5rem] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl shadow-slate-200/50 dark:shadow-none transition-all duration-500 focus-within:border-blue-500/50 focus-within:ring-4 focus-within:ring-blue-500/5">
+        
+        {/* AI Processing Overlay */}
+        {isProcessing && (
+          <div className="absolute inset-0 bg-white/60 dark:bg-zinc-950/60 backdrop-blur-md z-10 flex flex-col items-center justify-center gap-3 animate-in fade-in duration-300">
+             <div className="relative">
+               <div className="absolute inset-0 bg-blue-500 rounded-full blur-3xl opacity-20 animate-pulse" />
+               <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+             </div>
+             <div className="flex items-center gap-2">
+               <Sparkles size={16} className="text-blue-500 animate-pulse" />
+               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600">Syncing to Cloud...</span>
+             </div>
+          </div>
+        )}
+
         <textarea
           ref={textareaRef}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="What's on your mind? (Cmd+Enter to sync)"
-          className="w-full min-h-[140px] p-7 bg-transparent resize-none outline-none text-[15px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-600 leading-relaxed font-medium"
+          placeholder="Sync a drop... (Cmd + Enter)"
+          className="w-full min-h-[160px] p-8 pb-20 bg-transparent resize-none outline-none text-[16px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-300 dark:placeholder:text-zinc-700 leading-relaxed font-medium transition-opacity duration-300"
         />
-        <div className="flex items-center justify-between px-7 py-5 bg-slate-50/50 dark:bg-zinc-900/50 border-t border-slate-100 dark:border-zinc-800/80">
-          <div className="flex items-center gap-5">
+
+        <div className="absolute bottom-6 left-8 right-8 flex items-center justify-between">
+          <div className="flex items-center gap-2">
             <button 
-              onClick={toggleRecording}
-              className={`p-2.5 rounded-full transition-all group relative ${isRecording ? 'bg-red-500 text-white animate-pulse ring-4 ring-red-500/20' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
-              title="Voice Sync"
+              onClick={() => fileInputRef.current?.click()}
+              className="p-3 rounded-2xl text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all"
             >
-              <ICONS.Mic className="w-5 h-5" />
-              {isRecording && (
-                <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                </span>
-              )}
+              <Paperclip size={20} />
             </button>
-            <div className="h-4 w-[1px] bg-slate-200 dark:bg-zinc-800" />
-            <div className="flex items-center gap-2">
-              <ICONS.Sparkles className={`w-4 h-4 ${isProcessing ? 'text-blue-500 animate-spin' : 'text-slate-300 dark:text-zinc-700'}`} />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-600">
-                {isProcessing ? 'Smart Routing...' : isRecording ? 'Listening...' : 'AI Active'}
-              </span>
-            </div>
+            <button className="p-3 rounded-2xl text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all">
+              <ICONS.Mic size={20} />
+            </button>
           </div>
-          
-          <button
-            onClick={handleSubmit}
-            disabled={!content.trim() || isProcessing}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl font-bold text-sm transition-all active:scale-95 ${
-              content.trim() && !isProcessing
-                ? 'bg-slate-900 dark:bg-blue-600 text-white shadow-xl shadow-slate-900/10 hover:opacity-90'
-                : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-600 cursor-not-allowed'
-            }`}
-          >
-            <span>Sync</span>
-            <ICONS.Plus className="w-4 h-4" />
-          </button>
+
+          <div className="flex items-center gap-4">
+             <div className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-zinc-800 text-[9px] font-bold text-slate-400 border border-slate-100 dark:border-zinc-700">
+                <CmdIcon size={10} />
+                <span>ENTER</span>
+             </div>
+             <button 
+              onClick={handleSubmit}
+              disabled={!content.trim() || isProcessing}
+              className={`px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
+                content.trim() && !isProcessing 
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 active:scale-95' 
+                  : 'bg-slate-100 dark:bg-zinc-800 text-slate-300 dark:text-zinc-700 cursor-not-allowed'
+              }`}
+            >
+              Sync
+            </button>
+          </div>
         </div>
       </div>
     </div>

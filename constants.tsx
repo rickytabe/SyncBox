@@ -1,10 +1,11 @@
 
 import { 
   Inbox, 
-  Briefcase, 
-  User, 
   Link as LinkIcon, 
   Code, 
+  Image as ImageIcon,
+  Video,
+  FileText,
   Search, 
   Plus, 
   Settings, 
@@ -14,15 +15,24 @@ import {
   Mic,
   Sparkles,
   Command,
-  LayoutGrid
+  LayoutGrid,
+  FileCode,
+  Globe
 } from 'lucide-react';
+import { Collection } from './types';
 
-export const COLLECTIONS = [
-  { id: 'inbox', name: 'Inbox', icon: Inbox, color: 'text-blue-500' },
-  { id: 'work', name: 'Work', icon: Briefcase, color: 'text-indigo-500' },
-  { id: 'personal', name: 'Personal', icon: User, color: 'text-rose-500' },
-  { id: 'links', name: 'Links', icon: LinkIcon, color: 'text-purple-500' },
-  { id: 'code', name: 'Code', icon: Code, color: 'text-orange-500' },
+export const COLLECTIONS: Collection[] = [
+  // TEXT
+  { id: 'inbox', name: 'Inbox', icon: Inbox, color: 'text-blue-500', category: 'text' },
+  { id: 'links', name: 'Links', icon: LinkIcon, color: 'text-purple-500', category: 'text' },
+  { id: 'code', name: 'Code', icon: Code, color: 'text-orange-500', category: 'text' },
+  // MEDIA
+  { id: 'images', name: 'Images', icon: ImageIcon, color: 'text-emerald-500', category: 'media' },
+  { id: 'videos', name: 'Videos', icon: Video, color: 'text-rose-500', category: 'media' },
+  // DOCS
+  { id: 'documents', name: 'Docs', icon: FileText, color: 'text-amber-500', category: 'docs' },
+  // SYSTEM
+  { id: 'trash', name: 'Trash', icon: Trash2, color: 'text-slate-400', category: 'text', is_system: true },
 ];
 
 export const ICONS = {
@@ -35,5 +45,8 @@ export const ICONS = {
   Mic: Mic,
   Sparkles: Sparkles,
   Command: Command,
-  Layout: LayoutGrid
+  Layout: LayoutGrid,
+  File: FileText,
+  Globe: Globe,
+  Code: FileCode
 };
